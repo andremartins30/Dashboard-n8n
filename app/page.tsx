@@ -79,7 +79,7 @@ async function getRecentData(page: number = 1, limit: number = 10, sort?: string
       client.query(`
         SELECT e.*, c.nome_fantasia 
         FROM envios_whatsapp e
-        LEFT JOIN clientes c ON e.cliente_id = c.id::text
+        LEFT JOIN clientes c ON e.cliente_id = c.codigo
         ${query ? "WHERE c.nome_fantasia ILIKE $1 OR e.titulo_numero ILIKE $1" : ""}
         ORDER BY ${enviosOrderBy} ${safeOrder} 
         LIMIT ${limitOffsetIndex}
@@ -424,7 +424,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                               <div className="text-xs text-muted-foreground">ID: {envio.cliente_id}</div>
                             </td>
                             <td className="p-4 align-middle">{envio.titulo_numero}</td>
-                            <td className="p-4 align-middle">{new Date(envio.enviado_em).toLocaleString('pt-BR')}</td>
+                            <td className="p-4 align-middle">{new Date(envio.enviado_em).toLocaleString('pt-BR', { timeZone: 'America/Manaus' })}</td>
                           </tr>
                         ))}
                       </tbody>
