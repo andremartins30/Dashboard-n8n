@@ -12,139 +12,154 @@ import Search from '@/components/ui/search';
 export const dynamic = 'force-dynamic';
 
 async function getStats() {
-  const client = await pool.connect();
   try {
-    const [clientesRes, titulosRes, enviosRes] = await Promise.all([
-      client.query('SELECT COUNT(*) FROM clientes'),
-      client.query('SELECT COUNT(*) FROM titulos'),
-      client.query('SELECT COUNT(*) FROM envios_whatsapp'),
-    ]);
+    const client = await pool.connect();
+    try {
+      const [clientesRes, titulosRes, enviosRes] = await Promise.all([
+        client.query('SELECT COUNT(*) FROM clientes'),
+        client.query('SELECT COUNT(*) FROM titulos'),
+        client.query('SELECT COUNT(*) FROM envios_whatsapp'),
+      ]);
 
-    return {
-      clientesCount: parseInt(clientesRes.rows[0].count),
-      titulosCount: parseInt(titulosRes.rows[0].count),
-      enviosCount: parseInt(enviosRes.rows[0].count),
-    };
-  } finally {
-    client.release();
+      return {
+        clientesCount: parseInt(clientesRes.rows[0].count),
+        titulosCount: parseInt(titulosRes.rows[0].count),
+        enviosCount: parseInt(enviosRes.rows[0].count),
+      };
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Error fetching stats:', error);
+    throw new Error(`Failed to fetch statistics: ${error.message}`);
   }
 }
 
 async function getRecentData(page: number = 1, limit: number = 10, sort?: string, order: 'asc' | 'desc' = 'desc', query?: string) {
-  const offset = (page - 1) * limit;
-  const client = await pool.connect();
-
-  // Safelist columns for sorting
-  const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
-
-  const clientesSortMap: Record<string, string> = {
-    'nome': 'nome',
-    'telefone': 'telefone',
-    'criado_em': 'criado_em'
-  };
-  const clientesOrderBy = sort && clientesSortMap[sort] ? clientesSortMap[sort] : 'criado_em';
-
-  const titulosSortMap: Record<string, string> = {
-    'numero_titulo': 'numero_titulo',
-    'valor_titulo': 'valor_titulo',
-    'vencto_real': 'vencto_real',
-    'saldo': 'saldo'
-  };
-  const titulosOrderBy = sort && titulosSortMap[sort] ? titulosSortMap[sort] : 'criado_em';
-
-  const enviosSortMap: Record<string, string> = {
-    'nome_fantasia': 'c.nome_fantasia',
-    'titulo_numero': 'e.titulo_numero',
-    'enviado_em': 'e.enviado_em'
-  };
-  const enviosOrderBy = sort && enviosSortMap[sort] ? enviosSortMap[sort] : 'e.enviado_em';
-
   try {
-    const queryParams = query ? [`%${query}%`, limit, offset] : [limit, offset];
-    const limitOffsetIndex = query ? '$2 OFFSET $3' : '$1 OFFSET $2';
+    const offset = (page - 1) * limit;
+    const client = await pool.connect();
 
-    const [clientes, titulos, envios] = await Promise.all([
-      client.query(`
-        SELECT * FROM clientes 
-        ${query ? "WHERE nome ILIKE $1 OR nome_fantasia ILIKE $1 OR telefone ILIKE $1" : ""}
-        ORDER BY ${clientesOrderBy} ${safeOrder} 
-        LIMIT ${limitOffsetIndex}
-      `, queryParams),
-      client.query(`
-        SELECT * FROM titulos 
-        ${query ? "WHERE numero_titulo ILIKE $1" : ""}
-        ORDER BY ${titulosOrderBy} ${safeOrder} 
-        LIMIT ${limitOffsetIndex}
-      `, queryParams),
-      client.query(`
-        SELECT e.*, c.nome_fantasia 
-        FROM envios_whatsapp e
-        LEFT JOIN clientes c ON e.cliente_id = c.id::text
-        ${query ? "WHERE c.nome_fantasia ILIKE $1 OR e.titulo_numero ILIKE $1" : ""}
-        ORDER BY ${enviosOrderBy} ${safeOrder} 
-        LIMIT ${limitOffsetIndex}
-      `, queryParams),
-    ]);
+    // Safelist columns for sorting
+    const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
 
-    return {
-      clientes: clientes.rows,
-      titulos: titulos.rows,
-      envios: envios.rows,
+    const clientesSortMap: Record<string, string> = {
+      'nome': 'nome',
+      'telefone': 'telefone',
+      'criado_em': 'criado_em'
     };
-  } finally {
-    client.release();
+    const clientesOrderBy = sort && clientesSortMap[sort] ? clientesSortMap[sort] : 'criado_em';
+
+    const titulosSortMap: Record<string, string> = {
+      'numero_titulo': 'numero_titulo',
+      'valor_titulo': 'valor_titulo',
+      'vencto_real': 'vencto_real',
+      'saldo': 'saldo'
+    };
+    const titulosOrderBy = sort && titulosSortMap[sort] ? titulosSortMap[sort] : 'criado_em';
+
+    const enviosSortMap: Record<string, string> = {
+      'nome_fantasia': 'c.nome_fantasia',
+      'titulo_numero': 'e.titulo_numero',
+      'enviado_em': 'e.enviado_em'
+    };
+    const enviosOrderBy = sort && enviosSortMap[sort] ? enviosSortMap[sort] : 'e.enviado_em';
+
+    try {
+      const queryParams = query ? [`%${query}%`, limit, offset] : [limit, offset];
+      const limitOffsetIndex = query ? '$2 OFFSET $3' : '$1 OFFSET $2';
+
+      const [clientes, titulos, envios] = await Promise.all([
+        client.query(`
+          SELECT * FROM clientes 
+          ${query ? "WHERE nome ILIKE $1 OR nome_fantasia ILIKE $1 OR telefone ILIKE $1" : ""}
+          ORDER BY ${clientesOrderBy} ${safeOrder} 
+          LIMIT ${limitOffsetIndex}
+        `, queryParams),
+        client.query(`
+          SELECT * FROM titulos 
+          ${query ? "WHERE numero_titulo ILIKE $1" : ""}
+          ORDER BY ${titulosOrderBy} ${safeOrder} 
+          LIMIT ${limitOffsetIndex}
+        `, queryParams),
+        client.query(`
+          SELECT e.*, c.nome_fantasia 
+          FROM envios_whatsapp e
+          LEFT JOIN clientes c ON e.cliente_id = c.id::text
+          ${query ? "WHERE c.nome_fantasia ILIKE $1 OR e.titulo_numero ILIKE $1" : ""}
+          ORDER BY ${enviosOrderBy} ${safeOrder} 
+          LIMIT ${limitOffsetIndex}
+        `, queryParams),
+      ]);
+
+      return {
+        clientes: clientes.rows,
+        titulos: titulos.rows,
+        envios: envios.rows,
+      };
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Error fetching recent data:', error);
+    throw new Error(`Failed to fetch data: ${error.message}`);
   }
 }
 
 async function getOverdueTitles(sort?: string, order: 'asc' | 'desc' = 'desc', query?: string) {
-  const client = await pool.connect();
-
-  const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
-  const sortMap: Record<string, string> = {
-    'nome_fantasia': 'c.nome_fantasia',
-    'whatsapp': 'c.whatsapp',
-    'qtd_titulos': 'qtd_titulos',
-    'valor': 'valor'
-  };
-  const orderBy = sort && sortMap[sort] ? sortMap[sort] : 'qtd_titulos';
-
   try {
-    let queryText = `
-      SELECT
-          c.id AS cliente_id,
-          c.codigo,
-          c.nome,
-          c.nome_fantasia,
-          c.whatsapp,
-          COUNT(t.id) AS qtd_titulos,
-          SUM(t.saldo) AS valor
-      FROM clientes c
-      INNER JOIN titulos t
-          ON c.codigo = t.codigo
-      WHERE
-          t.vencto_orig::date IN (
-              CURRENT_DATE - interval '1 day'
-          )
-          AND t.saldo > 0
-    `;
+    const client = await pool.connect();
 
-    const queryParams: any[] = [];
-    if (query) {
-      queryText += ` AND (c.nome ILIKE $1 OR c.nome_fantasia ILIKE $1 OR c.whatsapp ILIKE $1)`;
-      queryParams.push(`%${query}%`);
+    const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
+    const sortMap: Record<string, string> = {
+      'nome_fantasia': 'c.nome_fantasia',
+      'whatsapp': 'c.whatsapp',
+      'qtd_titulos': 'qtd_titulos',
+      'valor': 'valor'
+    };
+    const orderBy = sort && sortMap[sort] ? sortMap[sort] : 'qtd_titulos';
+
+    try {
+      let queryText = `
+        SELECT
+            c.id AS cliente_id,
+            c.codigo,
+            c.nome,
+            c.nome_fantasia,
+            c.whatsapp,
+            COUNT(t.id) AS qtd_titulos,
+            SUM(t.saldo) AS valor
+        FROM clientes c
+        INNER JOIN titulos t
+            ON c.codigo = t.codigo
+        WHERE
+            t.vencto_orig::date IN (
+                CURRENT_DATE - interval '1 day'
+            )
+            AND t.saldo > 0
+      `;
+
+      const queryParams: any[] = [];
+      if (query) {
+        queryText += ` AND (c.nome ILIKE $1 OR c.nome_fantasia ILIKE $1 OR c.whatsapp ILIKE $1)`;
+        queryParams.push(`%${query}%`);
+      }
+
+      queryText += `
+        GROUP BY 
+            c.id, c.codigo, c.nome, c.nome_fantasia, c.whatsapp
+        ORDER BY 
+            ${orderBy} ${safeOrder};
+      `;
+
+      const res = await client.query(queryText, queryParams);
+      return res.rows;
+    } finally {
+      client.release();
     }
-
-    queryText += `
-      GROUP BY 
-          c.id, c.codigo, c.nome, c.nome_fantasia, c.whatsapp
-      ORDER BY 
-          ${orderBy} ${safeOrder};
-    `;
-
-    const res = await client.query(queryText, queryParams);
-    return res.rows;
-  } finally {
-    client.release();
+  } catch (error: any) {
+    console.error('Error fetching overdue titles:', error);
+    throw new Error(`Failed to fetch overdue titles: ${error.message}`);
   }
 }
 

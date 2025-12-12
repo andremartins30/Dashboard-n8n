@@ -1,0 +1,13 @@
+services:
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: analytics-dashboard
+    network_mode: "host"
+    environment:
+      - NODE_ENV=production
+      - PORT=8020
+    env_file:
+      - .env.local
+    restart: unless-stopped
