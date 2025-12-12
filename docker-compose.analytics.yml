@@ -1,0 +1,29 @@
+services:
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: analytics-dashboard
+    ports:
+      - "8020:8020"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT}
+      - DATABASE_URL=${DATABASE_URL}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+    env_file:
+      - .env.local
+    restart: unless-stopped
+    networks:
+      - analytics-network
+      - n8n_default
+
+networks:
+  analytics-network:
+    driver: bridge
+  n8n_default:
+    external: true
