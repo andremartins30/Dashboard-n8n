@@ -7,12 +7,46 @@ import { DashboardTabs } from '@/components/dashboard-tabs';
 import { Suspense } from 'react';
 import { ItemsPerPage } from '@/components/ui/items-per-page';
 import { SortableHeader } from '@/components/ui/sortable-header';
-import Search from '@/components/ui/search';
 import { DateFilter } from '@/components/date-filter';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const dynamic = 'force-dynamic';
+
+async function getLastUpdate() {
+  const client = await pool.connect();
+  try {
+    const [clientesRes, titulosRes, enviosRes] = await Promise.all([
+      client.query('SELECT criado_em FROM clientes ORDER BY criado_em ASC LIMIT 1'),
+      client.query('SELECT criado_em FROM titulos ORDER BY criado_em ASC LIMIT 1'),
+      client.query('SELECT enviado_em FROM envios_whatsapp ORDER BY enviado_em DESC LIMIT 1'),
+    ]);
+
+    const dates: Date[] = [];
+
+    if (clientesRes.rows[0]?.criado_em) {
+      dates.push(new Date(clientesRes.rows[0].criado_em));
+    }
+
+    if (titulosRes.rows[0]?.criado_em) {
+      // O timestamp de titulos não está considerando o GMT -4, então subtraímos 4 horas
+      const titulosDate = new Date(titulosRes.rows[0].criado_em);
+      titulosDate.setHours(titulosDate.getHours() - 4);
+      dates.push(titulosDate);
+    }
+
+    if (enviosRes.rows[0]?.enviado_em) {
+      dates.push(new Date(enviosRes.rows[0].enviado_em));
+    }
+
+    if (dates.length === 0) return null;
+
+    // Retorna a data mais recente entre as três
+    return new Date(Math.max(...dates.map(d => d.getTime())));
+  } finally {
+    client.release();
+  }
+}
 
 async function getStats() {
   const client = await pool.connect();
@@ -172,6 +206,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const stats = await getStats();
   const recentData = await getRecentData(page, limit, sort, order, query, date);
   const overdueTitles = await getOverdueTitles(sort, order, query);
+  const lastUpdate = await getLastUpdate();
 
   // Calculate overdue stats
   const overdueStats = {
@@ -189,7 +224,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-foreground">Dashboard N8N</h1>
           <div className="text-sm text-muted-foreground">
-            Última atualização: {new Date().toLocaleString('pt-BR')}
+            Última atualização: {lastUpdate ? lastUpdate.toLocaleString('pt-BR', { timeZone: 'America/Manaus' }) : 'N/A'}
           </div>
         </div>
 
@@ -224,10 +259,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </Card>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <Search placeholder="Buscar clientes, títulos..." />
-          <DateFilter />
-        </div>
+
 
         {/* Data Tabs */}
         <Suspense fallback={<div>Carregando abas...</div>}>
@@ -410,6 +442,17 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             </TabsContent>
 
             <TabsContent value="envios" className="space-y-4">
+              <div className="flex flex-col items-end gap-2">
+                <DateFilter />
+                {date && (
+                  <a href={`/api/export-csv?date=${date}`} download>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      Exportar CSV
+                    </Button>
+                  </a>
+                )}
+              </div>
               <Card>
                 <CardHeader>
                   <CardTitle>Histórico de Envios</CardTitle>
@@ -467,17 +510,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                     </table>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <ItemsPerPage />
-                      {date && (
-                        <a href={`/api/export-csv?date=${date}`} download>
-                          <Button variant="outline" size="sm" className="flex items-center gap-2">
-                            <Download className="h-4 w-4" />
-                            Exportar CSV
-                          </Button>
-                        </a>
-                      )}
-                    </div>
+                    <ItemsPerPage />
                     <PaginationControl currentPage={page} totalPages={Math.ceil(stats.enviosCount / limit)} baseUrl="/" />
                   </div>
                 </CardContent>
