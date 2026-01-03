@@ -18,7 +18,7 @@ interface Titulo {
     parcela: string
     dt_emissao: string
     vencto_real: string
-    vencto_real: string
+    vencto_orig: string
     valor_titulo: number
     saldo: number
     filial_titulo: string
