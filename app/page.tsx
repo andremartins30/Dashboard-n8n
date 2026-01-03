@@ -17,8 +17,8 @@ async function getLastUpdate() {
   const client = await pool.connect();
   try {
     const [clientesRes, titulosRes, enviosRes] = await Promise.all([
-      client.query('SELECT criado_em FROM clientes ORDER BY criado_em ASC LIMIT 1'),
-      client.query('SELECT criado_em FROM titulos ORDER BY criado_em ASC LIMIT 1'),
+      client.query('SELECT criado_em FROM clientes ORDER BY criado_em DESC LIMIT 1'),
+      client.query('SELECT criado_em FROM titulos ORDER BY criado_em DESC LIMIT 1'),
       client.query('SELECT enviado_em FROM envios_whatsapp ORDER BY enviado_em DESC LIMIT 1'),
     ]);
 
@@ -29,10 +29,7 @@ async function getLastUpdate() {
     }
 
     if (titulosRes.rows[0]?.criado_em) {
-      // O timestamp de titulos não está considerando o GMT -4, então subtraímos 4 horas
-      const titulosDate = new Date(titulosRes.rows[0].criado_em);
-      titulosDate.setHours(titulosDate.getHours() - 4);
-      dates.push(titulosDate);
+      dates.push(new Date(titulosRes.rows[0].criado_em));
     }
 
     if (enviosRes.rows[0]?.enviado_em) {
@@ -41,8 +38,9 @@ async function getLastUpdate() {
 
     if (dates.length === 0) return null;
 
-    // Retorna a data mais recente entre as três
-    return new Date(Math.max(...dates.map(d => d.getTime())));
+    // Retorna a data mais recente entre as três, subtraindo 4 horas para o fuso de Manaus
+    const latest = new Date(Math.max(...dates.map(d => d.getTime())));
+    return new Date(latest.getTime() - 4 * 60 * 60 * 1000);
   } finally {
     client.release();
   }
@@ -224,7 +222,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-foreground">Dashboard N8N</h1>
           <div className="text-sm text-muted-foreground">
-            Última atualização: {lastUpdate ? lastUpdate.toLocaleString('pt-BR', { timeZone: 'America/Manaus' }) : 'N/A'}
+            Última atualização: {lastUpdate ? lastUpdate.toLocaleString('pt-BR') : 'N/A'}
           </div>
         </div>
 
@@ -415,6 +413,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                             <SortableHeader label="Vencimento" value="vencto_real" />
                           </th>
                           <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                            Portador
+                          </th>
+                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                            Situação
+                          </th>
+                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                             <SortableHeader label="Status" value="saldo" />
                           </th>
                         </tr>
@@ -427,6 +431,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(titulo.valor_titulo)}
                             </td>
                             <td className="p-4 align-middle">{new Date(titulo.vencto_real).toLocaleDateString('pt-BR')}</td>
+                            <td className="p-4 align-middle">{titulo.portador}</td>
+                            <td className="p-4 align-middle">{titulo.situacao}</td>
                             <td className="p-4 align-middle">{titulo.saldo > 0 ? 'Aberto' : 'Pago'}</td>
                           </tr>
                         ))}
@@ -503,7 +509,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                             <td className="p-4 align-middle">
                               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(envio.valor_titulo)}
                             </td>
-                            <td className="p-4 align-middle">{new Date(envio.enviado_em).toLocaleString('pt-BR', { timeZone: 'America/Manaus' })}</td>
+                            <td className="p-4 align-middle">{new Date(new Date(envio.enviado_em).getTime() - 4 * 60 * 60 * 1000).toLocaleString('pt-BR')}</td>
                           </tr>
                         ))}
                       </tbody>
