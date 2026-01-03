@@ -10,6 +10,7 @@ import { SortableHeader } from '@/components/ui/sortable-header';
 import { DateFilter } from '@/components/date-filter';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OverdueTitlesTable } from '@/components/overdue-titles-table';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,7 +94,7 @@ async function getRecentData(page: number = 1, limit: number = 10, sort?: string
     'titulo_numero': 'e.titulo_numero',
     'enviado_em': 'e.enviado_em',
     'valor_titulo': 'e.valor_titulo',
-    'vencto_orig': 'e.vencto_orig'
+    'vencto_real': 'e.vencto_real'
   };
   const enviosOrderBy = sort && enviosSortMap[sort] ? enviosSortMap[sort] : 'e.enviado_em';
 
@@ -166,7 +167,7 @@ async function getOverdueTitles(sort?: string, order: 'asc' | 'desc' = 'desc', q
       INNER JOIN titulos t
           ON c.codigo = t.codigo
       WHERE
-          t.vencto_orig::date IN (
+          t.vencto_real::date IN (
               CURRENT_DATE - interval '1 day'
           )
           AND t.saldo > 0
@@ -308,47 +309,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <CardTitle>Clientes com Títulos Vencidos Ontem</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full overflow-auto">
-                    <table className="w-full caption-bottom text-sm">
-                      <thead className="[&_tr]:border-b">
-                        <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            <SortableHeader label="Cliente" value="nome_fantasia" />
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            <SortableHeader label="WhatsApp" value="whatsapp" />
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            <SortableHeader label="Qtd Títulos" value="qtd_titulos" />
-                          </th>
-                          <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            <SortableHeader label="Valor Total" value="valor" />
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="[&_tr:last-child]:border-0">
-                        {overdueTitles.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="p-4 text-center text-muted-foreground">Nenhum título vencido encontrado para ontem.</td>
-                          </tr>
-                        ) : (
-                          overdueTitles.map((item: any) => (
-                            <tr key={item.cliente_id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                              <td className="p-4 align-middle">
-                                <div className="font-medium">{item.nome_fantasia}</div>
-                                <div className="text-xs text-muted-foreground">{item.nome}</div>
-                              </td>
-                              <td className="p-4 align-middle">{item.whatsapp}</td>
-                              <td className="p-4 align-middle">{item.qtd_titulos}</td>
-                              <td className="p-4 align-middle">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  <OverdueTitlesTable overdueTitles={overdueTitles} />
                 </CardContent>
               </Card>
             </TabsContent>

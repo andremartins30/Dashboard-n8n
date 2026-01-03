@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         c.nome_fantasia,
         ew.titulo_numero,
         ew.parcela,
-        ew.vencto_orig,
+        ew.vencto_real,
         ew.valor_titulo,
         c.whatsapp,
         ew.enviado_em
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
             r.nome_fantasia,
             r.titulo_numero,
             r.parcela,
-            new Date(r.vencto_orig).toLocaleDateString('pt-BR'),
+            new Date(r.vencto_real).toLocaleDateString('pt-BR'),
             r.valor_titulo,
             r.whatsapp,
             new Date(r.enviado_em).toLocaleString('pt-BR')
